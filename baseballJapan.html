@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FC甲子園：熱血淘汰晉級賽 v4</title>
+    <title>FC甲子園：熱血淘汰與紀錄室</title>
     <style>
         :root {
             --fc-black: #000000;
@@ -40,6 +40,8 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            position: relative;
+            overflow: hidden;
         }
 
         /* 經典場景切換控制 */
@@ -53,7 +55,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
-            max-height: 240px;
+            max-height: 200px;
             overflow-y: auto;
             border: 2px solid var(--fc-white);
             padding: 8px;
@@ -120,6 +122,13 @@
         .base-2 { top: -5px; left: -5px; }
         .base-3 { bottom: -5px; left: -5px; }
 
+        /* 數據紀錄室區塊 */
+        .stats-drawer { background: #222; border: 2px solid var(--fc-white); font-size: 0.7rem; padding: 5px; max-height: 140px; overflow-y: auto; }
+        .stats-table { width: 100%; border-collapse: collapse; text-align: center; }
+        .stats-table th { background: #333; color: var(--fc-gold); position: sticky; top: 0; }
+        .stats-table td, .stats-table th { border: 1px solid #444; padding: 3px 2px; }
+        .stats-table tr.current-batter { background: rgba(218, 37, 29, 0.3); font-weight: bold; border: 1px solid var(--fc-red); }
+
         /* 選手對決 */
         .versus-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .player-card { background: #222; border: 2px solid var(--fc-white); padding: 5px; text-align: center; font-size: 0.8rem; }
@@ -127,7 +136,7 @@
         .player-card.def { border-color: #00ff66; }
         .sprite-window { width: 90px; height: 120px; margin: 5px auto; border: 2px solid var(--fc-white); background-size: calc(90px * 7) calc(120px * 3); background-repeat: no-repeat; image-rendering: pixelated; background-color: #111; }
 
-        .log-console { background: var(--fc-black); border: 2px solid var(--fc-white); height: 85px; overflow-y: auto; padding: 5px; font-size: 0.8rem; line-height: 1.4; color: #00ff00; }
+        .log-console { background: var(--fc-black); border: 2px solid var(--fc-white); height: 75px; overflow-y: auto; padding: 5px; font-size: 0.8rem; line-height: 1.4; color: #00ff00; }
         .save-load-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 1px dashed var(--fc-white); padding: 8px; font-size: 0.75rem; }
         .file-btn { background: #333; color: #fff; border: 1px solid #fff; padding: 4px; text-align: center; cursor: pointer; }
         #file-input { display: none; }
@@ -137,30 +146,41 @@
         .btn-main { width: 100%; padding: 16px; font-size: 1.25rem; font-weight: bold; background: linear-gradient(18deg, #a01a14, var(--fc-red)); color: var(--fc-white); border: 3px solid var(--fc-white); border-radius: 10px; box-shadow: 0 4px 0 #600; cursor: pointer; text-shadow: 1px 1px #000; }
         .btn-main:disabled { background: #444; box-shadow: none; border-color: #777; color: #888; }
         
-        .audio-btn {
-            background: var(--fc-red);
-            color: var(--fc-white);
-            border: 2px solid var(--fc-white);
-            font-size: 0.8rem;
-            padding: 2px 8px;
-            cursor: pointer;
-            font-weight: bold;
+        .audio-btn { background: var(--fc-red); color: var(--fc-white); border: 2px solid var(--fc-white); font-size: 0.8rem; padding: 2px 8px; cursor: pointer; font-weight: bold; }
+
+        /* 特效覆蓋層 */
+        .fx-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; justify-content: center; align-items: center;
+            z-index: 999; font-size: 3rem; font-weight: bold; text-shadow: 4px 4px #000;
+        }
+        @keyframes flashFx {
+            0% { background: rgba(255,255,255,0.8); color: var(--fc-red); transform: scale(1); }
+            50% { background: rgba(218,37,29,0.7); color: var(--fc-gold); transform: scale(1.1) rotate(-5deg); }
+            100% { background: transparent; color: transparent; transform: scale(1); }
+        }
+        .fx-active { display: flex; animation: flashFx 0.4s ease-in-out 3; }
+        .shake { animation: shakeAni 0.1s ease-in-out 5; }
+        @keyframes shakeAni {
+            0% { transform: translate(2px, 2px); }
+            50% { transform: translate(-2px, -2px); }
+            100% { transform: translate(0, 0); }
         }
     </style>
 </head>
 <body>
 
-<div class="game-wrapper">
-    <!-- 頂部共通狀態 -->
+<div class="game-wrapper" id="game-container">
+    <div class="fx-overlay" id="hit-fx-overlay">HIT!!</div>
+
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #fff; padding-bottom:4px;">
         <span id="global-stage" style="color:var(--fc-gold); font-weight:bold; font-size:0.9rem;">大會預備中</span>
         <button class="audio-btn" id="audio-toggle" onclick="toggleAudio()">🎵 音效: 關</button>
     </div>
 
-    <!-- 場景一：選隊開局畫面 -->
     <div id="scene-select" class="scene active">
         <div class="title-screen">
-            <h1>FC熱血甲子園<br>【晉級淘汰大賽】</h1>
+            <h1>FC熱血甲子園<br>【數據大會紀錄版】</h1>
             <p style="font-size:0.8rem; color:#aaa;">請選擇你的地方代表高校（紅隊進攻）：</p>
         </div>
         <div class="team-grid" id="select-team-grid"></div>
@@ -169,7 +189,6 @@
         </div>
     </div>
 
-    <!-- 場景二：晉級對陣宣告 -->
     <div id="scene-bracket" class="scene">
         <div class="stage-banner" id="bracket-stage-title">準決賽 (ROUND 1)</div>
         <div class="vs-announcement">
@@ -183,9 +202,8 @@
         </div>
     </div>
 
-    <!-- 場景三：球賽主戰場 -->
     <div id="scene-match" class="scene">
-        <div class="scoreboard">
+        <div class="scoreboard" id="main-scoreboard">
             <table class="sb-table">
                 <tr class="sb-th-gold">
                     <th style="text-align:left; width:65px;">TEAM</th>
@@ -222,6 +240,19 @@
             </div>
         </div>
 
+        <div class="stats-drawer">
+            <div style="color:var(--fc-gold); font-weight:bold; margin-bottom:3px; font-size:0.75rem;">📋 紅隊 1~9棒 賽事即時紀錄統計</div>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>棒次</th><th>名字</th><th>打席</th><th>安打</th><th>打點</th><th>HR</th><th>打擊率</th>
+                    </tr>
+                </thead>
+                <tbody id="stats-tbody">
+                    </tbody>
+            </table>
+        </div>
+
         <div class="versus-zone">
             <div class="player-card atk">
                 <div id="card-atk-title" style="color:var(--fc-red); font-weight:bold; font-size:0.75rem;">進攻</div>
@@ -252,23 +283,30 @@
 </div>
 
 <script>
-    // 依據您的自訂命名，預設直接讀取同目錄下的本地圖檔
     const RED_TEAM_IMG = "red_team_sprites.png";
     const GREEN_TEAM_IMG = "green_team_sprites.png";
 
-    // 擴充至 16 校著名高校名單
     const allSchools = [
         "大阪桐蔭", "智弁和歌山", "星稜", "仙台育英", "中京大中京", "廣陵", "橫濱", "花卷東",
         "明德義塾", "敦賀氣比", "作新學院", "慶應義塾", "報德學園", "常總學院", "天理", "高知商"
     ];
     const names = ["山本", "佐藤", "田中", "高橋", "渡邊", "伊藤", "中村", "小林", "加藤", "吉田"];
 
-    // 晉級聯賽狀態
+    // 擴大追蹤 1~9棒個人紀錄 (紅隊玩家)
+    let playerStats = Array.from({length: 9}, (_, i) => ({
+        order: i + 1,
+        name: names[i % names.length],
+        pa: 0,   // 打席
+        h: 0,    // 安打
+        rbi: 0,  // 打點
+        hr: 0    // 全壘打
+    }));
+
     let tournament = {
         playerSchool: "",
-        currentStage: 0, // 0:地方準決賽, 1:地方決賽, 2:甲子園全國總決賽
+        currentStage: 0, 
         stagesText: ["地方準決賽", "地方決賽", "甲子園全國總決賽"],
-        pool: [] // 敵手池
+        pool: [] 
     };
 
     let game = {
@@ -280,7 +318,6 @@
         currentInningRun: 0, isOver: false
     };
 
-    // 音效合成
     let audioCtx = null, bgmInterval = null, isAudioOn = false, bgmStep = 0;
     const redMelody = [392, 440, 493, 523, 523, 493, 440, 392]; 
     const greenMelody = [293, 349, 392, 440, 392, 349, 293, 261];
@@ -298,12 +335,29 @@
         } catch(e){}
     }
 
+    function triggerVisualFx(text) {
+        const overlay = document.getElementById('hit-fx-overlay');
+        const container = document.getElementById('game-container');
+        overlay.innerText = text;
+        overlay.classList.remove('fx-active');
+        container.classList.remove('shake');
+        
+        void overlay.offsetWidth; // 強制重繪驅動動畫
+        overlay.classList.add('fx-active');
+        container.classList.add('shake');
+        
+        setTimeout(() => {
+            overlay.classList.remove('fx-active');
+            container.classList.remove('shake');
+        }, 1200);
+    }
+
     function startDynamicBGM() {
         if (bgmInterval) clearInterval(bgmInterval);
         bgmStep = 0;
         bgmInterval = setInterval(() => {
             if (isAudioOn && !game.isOver && document.getElementById('scene-match').classList.contains('active')) {
-                let freq = (game.isTop ? redMelody : greenMelody)[bgmStep % 8];
+                let freq = (game.isTop ? redMelody : bgmStep % 8 === 0 ? 587 : redMelody[bgmStep % 8]);
                 playTone(freq, game.isTop ? 'square' : 'sawtooth', 0.18, 0.02);
                 bgmStep++;
             }
@@ -317,13 +371,11 @@
         else { if (bgmInterval) clearInterval(bgmInterval); }
     }
 
-    // 場景切換
     function showScene(id) {
         document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
 
-    // 初始化選隊介面
     function initSelectScreen() {
         const grid = document.getElementById('select-team-grid');
         grid.innerHTML = "";
@@ -342,7 +394,6 @@
 
     function confirmTeam() {
         if (!tournament.playerSchool) { alert("請先選取一所高校！"); return; }
-        // 隨機生成對手池（過濾掉玩家選的學校）
         tournament.pool = allSchools.filter(s => s !== tournament.playerSchool).sort(() => Math.random() - 0.5);
         tournament.currentStage = 0;
         goToBracketScene();
@@ -360,7 +411,7 @@
         game = {
             scoreRed: 0, scoreGreen: 0, hitsRed: 0, hitsGreen: 0,
             inning: 1, isTop: true, balls: 0, strikes: 0, outs: 0,
-            bases: [false, false, false], batIndex: Math.floor(Math.random()*10), pitIndex: Math.floor(Math.random()*21),
+            bases: [false, false, false], batIndex: 0, pitIndex: Math.floor(Math.random()*21),
             redSchool: tournament.playerSchool, greenSchool: tournament.pool[tournament.currentStage],
             redInnings: Array(10).fill('-'), greenInnings: Array(10).fill('-'),
             currentInningRun: 0, isOver: false
@@ -370,16 +421,41 @@
         document.getElementById('main-action-btn').disabled = false;
         document.getElementById('log-box').innerHTML = `[大會] ${game.redSchool} 對戰 ${game.greenSchool}，比賽開始！`;
         
+        renderStatsTable();
         updateUI();
         showScene('scene-match');
         if (isAudioOn) startDynamicBGM();
     }
 
-    // 球賽邏輯
     function setSprite(element, imgUrl, index) {
         const col = index % 7; const row = Math.floor(index / 7);
         element.style.backgroundImage = `url('${imgUrl}')`;
         element.style.backgroundPosition = `${(col / 6) * 100}% ${(row / 2) * 100}%`;
+    }
+
+    // 更新紀錄看板
+    function renderStatsTable() {
+        const tbody = document.getElementById('stats-tbody');
+        tbody.innerHTML = "";
+        const currentOrder = (game.batIndex % 9) + 1;
+
+        playerStats.forEach(p => {
+            const tr = document.createElement('tr');
+            if (game.isTop && p.order === currentOrder && !game.isOver) {
+                tr.className = "current-batter";
+            }
+            const avg = p.pa === 0 ? ".000" : (p.h / p.pa).toFixed(3).substring(1);
+            tr.innerHTML = `
+                <td>${p.order}棒</td>
+                <td>${p.name}</td>
+                <td>${p.pa}</td>
+                <td>${p.h}</td>
+                <td>${p.rbi}</td>
+                <td>${p.hr}</td>
+                <td style="color:var(--fc-gold); font-weight:bold;">${avg}</td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     function updateUI() {
@@ -405,20 +481,25 @@
 
         const bSprite = document.getElementById('sprite-bat');
         const pSprite = document.getElementById('sprite-pit');
+        
+        const currentOrderIndex = game.batIndex % 9;
         if (game.isTop) {
-            setSprite(bSprite, RED_TEAM_IMG, game.batIndex);
+            setSprite(bSprite, RED_TEAM_IMG, game.batIndex % 21);
             setSprite(pSprite, GREEN_TEAM_IMG, game.pitIndex);
             document.getElementById('card-atk-title').innerText = `${game.redSchool} (攻)`;
             document.getElementById('card-def-title').innerText = `${game.greenSchool} (守)`;
+            document.getElementById('card-bat-name').innerText = playerStats[currentOrderIndex].name;
+            document.getElementById('card-bat-order').innerText = `${playerStats[currentOrderIndex].order}棒`;
         } else {
-            setSprite(bSprite, GREEN_TEAM_IMG, game.batIndex);
+            setSprite(bSprite, GREEN_TEAM_IMG, game.batIndex % 21);
             setSprite(pSprite, RED_TEAM_IMG, game.pitIndex);
             document.getElementById('card-atk-title').innerText = `${game.greenSchool} (攻)`;
             document.getElementById('card-def-title').innerText = `${game.redSchool} (守)`;
+            document.getElementById('card-bat-name').innerText = names[game.batIndex % names.length];
+            document.getElementById('card-bat-order').innerText = `${(game.batIndex % 9) + 1}棒`;
         }
-        document.getElementById('card-bat-name').innerText = names[game.batIndex % names.length];
         document.getElementById('card-pit-name').innerText = names[(game.pitIndex + 2) % names.length];
-        document.getElementById('card-bat-order').innerText = `${(game.batIndex % 9) + 1}棒`;
+        renderStatsTable();
     }
 
     function log(msg) {
@@ -427,8 +508,10 @@
         box.scrollTop = box.scrollHeight;
     }
 
-    function advanceBases(num) {
+    function advanceBases(num, isHr = false) {
         let runs = 0;
+        const currentOrderIndex = game.batIndex % 9;
+
         for (let i = 0; i < num; i++) {
             if (game.bases[2]) { runs++; game.bases[2] = false; }
             if (game.bases[1]) { game.bases[2] = true; game.bases[1] = false; }
@@ -440,7 +523,12 @@
         if (runs > 0) {
             if(isAudioOn) { playTone(523, 'square', 0.05); setTimeout(()=>playTone(659, 'square', 0.05), 60); }
             game.currentInningRun += runs;
-            if (game.isTop) game.scoreRed += runs; else game.scoreGreen += runs;
+            if (game.isTop) {
+                game.scoreRed += runs;
+                playerStats[currentOrderIndex].rbi += runs; // 紅隊進攻，累加當前打者打點
+            } else {
+                game.scoreGreen += runs;
+            }
             log(`[得分] 🏃 跑回 ${runs} 分！`);
         }
         if (!game.isTop && game.inning >= 9 && game.scoreGreen > game.scoreRed) {
@@ -473,8 +561,15 @@
         if (game.isTop && game.redInnings[game.inning-1] === '-') game.redInnings[game.inning-1] = 0;
         if (!game.isTop && game.greenInnings[game.inning-1] === '-') game.greenInnings[game.inning-1] = 0;
 
+        const currentOrderIndex = game.batIndex % 9;
+
+        // 進攻時增加紅隊打席
+        if (game.isTop) {
+            playerStats[currentOrderIndex].pa++;
+        }
+
         const p = Math.random();
-        if (p < 0.45) {
+        if (p < 0.44) {
             if (Math.random() < 0.5) {
                 game.strikes++; log(`[好球] 落空！`);
                 if (game.strikes >= 3) { game.outs++; game.strikes = 0; game.balls = 0; if(isAudioOn) playTone(220, 'square', 0.2); log(`[出局] ❌ 三振！`); }
@@ -485,15 +580,37 @@
         } else {
             game.strikes = 0; game.balls = 0;
             const hitP = Math.random();
-            if (hitP < 0.5) { game.outs++; if(isAudioOn) playTone(220, 'square', 0.2); log(`[出局] 擊出高飛被接殺。`); }
+            if (hitP < 0.48) { game.outs++; if(isAudioOn) playTone(220, 'square', 0.2); log(`[出局] 擊出高飛被接殺。`); }
             else {
                 if(isAudioOn) { playTone(180, 'triangle', 0.08); playTone(900, 'square', 0.12); }
-                if (hitP < 0.85) { log(`[安打] 🔥 一壘安打！`); advanceBases(1); }
-                else if (hitP < 0.96) { log(`[長打] 🚀 二壘安打！`); advanceBases(2); }
-                else { log(`[全壘打] ☄️ 💥 全 壘 打 ！！`); advanceBases(4); }
+                
+                // 只要打擊成功，紅隊安打數增加
+                if (game.isTop) {
+                    game.hitsRed++;
+                    playerStats[currentOrderIndex].h++;
+                } else {
+                    game.hitsGreen++;
+                }
+
+                if (hitP < 0.82) { 
+                    log(`[安打] 🔥 一壘安打！`); 
+                    triggerVisualFx("HIT!");
+                    advanceBases(1); 
+                }
+                else if (hitP < 0.94) { 
+                    log(`[長打] 🚀 二壘安打！`); 
+                    triggerVisualFx("2-BASE H!");
+                    advanceBases(2); 
+                }
+                else { 
+                    log(`[全壘打] ☄️ 💥 全 壘 打 ！！`); 
+                    triggerVisualFx("HOME RUN!!");
+                    if (game.isTop) playerStats[currentOrderIndex].hr++; // 累加全壘打紀錄
+                    advanceBases(4, true); 
+                }
             }
         }
-        if(!game.isOver) game.batIndex = (game.batIndex + 1) % 21;
+        if(!game.isOver) game.batIndex = (game.batIndex + 1);
         if (game.outs >= 3) { log(`[交換] 3出局攻守交換。`); switchInning(); }
         if(!game.isOver) updateUI();
     }
@@ -523,20 +640,17 @@
                 document.getElementById('main-action-btn').disabled = true;
             }
         } else {
-            if(isDraw) {
-                log(`[大會公告] 延長賽平手和局！依大會規定判定 CPU 晉級，大會遺憾淘汰！`);
-            } else {
-                log(`[大會公告] ❌ 比賽終了，${tournament.playerSchool} 戰敗被淘汰！GAME OVER`);
-            }
+            if(isDraw) log(`[大會公告] 延長賽平手和局！依大會規定判定 CPU 晉級，大會遺憾淘汰！`);
+            else log(`[大會公告] ❌ 比賽終了，${tournament.playerSchool} 戰敗被淘汰！GAME OVER`);
+            
             document.getElementById('main-action-btn').innerText = "💥 淘汰敗退 (點擊重來)";
-            document.getElementById('main-action-btn').onclick = () => {
-                location.reload();
-            };
+            document.getElementById('main-action-btn').onclick = () => { location.reload(); };
         }
     }
 
     function exportJSON() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tournament, game }, null, 2));
+        // 同步導出球員詳細累計數據
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tournament, game, playerStats }, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
         downloadAnchor.setAttribute("download", `koshien_tournament_stage_${tournament.currentStage}.json`);
@@ -553,12 +667,13 @@
                 if (imported.tournament && imported.game) {
                     tournament = imported.tournament;
                     game = imported.game;
+                    if (imported.playerStats) playerStats = imported.playerStats;
                     document.getElementById('main-action-btn').onclick = playBall;
                     document.getElementById('main-action-btn').disabled = game.isOver;
                     showScene('scene-match');
                     updateUI();
                     if(isAudioOn) startDynamicBGM();
-                    log(`[系統] 📂 成功回復第 ${tournament.currentStage+1} 輪聯賽進度！`);
+                    log(`[系統] 📂 成功回復第 ${tournament.currentStage+1} 輪聯賽與球員紀錄！`);
                 }
             } catch (err) { alert("檔案讀取失敗！"); }
         };
