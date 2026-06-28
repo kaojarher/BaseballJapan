@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FC甲子園：熱血淘汰晉級賽</title>
+    <style>
+        :root {
+            --fc-black: #000000;
+            --fc-white: #ffffff;
+            --fc-red: #da251d;       
+            --fc-gold: #fbc02d;      
+            --fc-screen-bg: #004411;  
+            --fc-soil: #5d4037;       
+        }
+        * {
+            box-sizing: border-box;
+            font-family: 'Courier New', 'Courier', 'Impact', "Microsoft JhengHei", sans-serif;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none; 
+        }
+        body {
+            background-color: var(--fc-black);
+            color: var(--fc-white);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .game-wrapper {
+            width: 100%;
+            max-width: 480px; 
+            background: #111;
+            border: 4px solid var(--fc-white);
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 經典場景切換控制 */
+        .scene { display: none; }
+        .scene.active { display: flex; flex-direction: column; gap: 10px; }
+
+        /* 選隊畫面 */
+        .title-screen { text-align: center; padding: 20px 0; }
+        .title-screen h1 { color: var(--fc-gold); font-size: 1.6rem; margin-bottom: 20px; text-shadow: 3px 3px #500; }
+        .team-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            border: 2px solid var(--fc-white);
+            padding: 8px;
+            background: #222;
+        }
+        .team-btn {
+            background: #333;
+            color: #fff;
+            border: 2px solid #555;
+            padding: 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .team-btn.selected {
+            background: var(--fc-red);
+            border-color: var(--fc-gold);
+            color: var(--fc-white);
+            box-shadow: 0 0 8px var(--fc-gold);
+        }
+
+        /* 晉級樹狀畫面 */
+        .stage-banner {
+            background: var(--fc-red);
+            color: #fff;
+            text-align: center;
+            padding: 8px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border: 2px solid #fff;
+        }
+        .vs-announcement {
+            text-align: center;
+            background: #222;
+            padding: 20px;
+            border: 2px dashed #fff;
+            font-size: 1.2rem;
+        }
+
+        /* 遊戲主計分板 */
+        .scoreboard { background-color: var(--fc-black); border: 2px solid var(--fc-white); padding: 5px; font-size: 0.75rem; }
+        .sb-table { width: 100%; border-collapse: collapse; text-align: center; }
+        .sb-table th, .sb-table td { padding: 4px 2px; border: 1px solid #333; }
+        .sb-th-gold { color: var(--fc-gold); font-weight: bold; }
+        .sb-name { text-align: left; padding-left: 4px; font-weight: bold; max-width: 75px; overflow: hidden; }
+        .sb-name.red { color: var(--fc-red); }
+        .sb-name.green { color: #00ff66; }
+        .sb-total { color: var(--fc-gold); font-size: 0.85rem; font-weight: bold; }
+
+        /* 殘壘與燈號 */
+        .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--fc-screen-bg); padding: 8px; border: 2px solid var(--fc-white); }
+        .bso-panel { display: flex; flex-direction: column; justify-content: center; gap: 4px; background: rgba(0,0,0,0.5); padding: 5px; }
+        .bso-row { display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.9rem;}
+        .bso-dots { display: flex; gap: 4px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background: #333; border: 1px solid #fff;}
+        .dot.b.active { background: #00ff00; }
+        .dot.s.active { background: #00ffff; }
+        .dot.o.active { background: #ff0000; }
+        .diamond-box { display: flex; justify-content: center; align-items: center; background: var(--fc-soil); height: 75px; }
+        .diamond { width: 45px; height: 45px; border: 1px dashed var(--fc-white); transform: rotate(45deg); position: relative; }
+        .base { position: absolute; width: 10px; height: 10px; background: var(--fc-white); transform: rotate(-45deg); }
+        .base.active { background: var(--fc-gold); }
+        .base-1 { top: -5px; right: -5px; }
+        .base-2 { top: -5px; left: -5px; }
+        .base-3 { bottom: -5px; left: -5px; }
+
+        /* 選手對決 */
+        .versus-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .player-card { background: #222; border: 2px solid var(--fc-white); padding: 5px; text-align: center; font-size: 0.8rem; }
+        .player-card.atk { border-color: var(--fc-red); }
+        .player-card.def { border-color: #00ff66; }
+        .sprite-window { width: 90px; height: 120px; margin: 5px auto; border: 2px solid var(--fc-white); background-size: calc(90px * 7) calc(120px * 3); background-repeat: no-repeat; image-rendering: pixelated; }
+
+        .log-console { background: var(--fc-black); border: 2px solid var(--fc-white); height: 85px; overflow-y: auto; padding: 5px; font-size: 0.8rem; line-height: 1.4; color: #00ff00; }
+        .save-load-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 1px dashed var(--fc-white); padding: 8px; font-size: 0.75rem; }
+        .file-btn { background: #333; color: #fff; border: 1px solid #fff; padding: 4px; text-align: center; cursor: pointer; }
+        #file-input { display: none; }
+
+        /* 手機單手置底大鈕 */
+        .action-zone { margin-top: 5px; }
+        .btn-main { width: 100%; padding: 16px; font-size: 1.25rem; font-weight: bold; background: linear-gradient(18deg, #a01a14, var(--fc-red)); color: var(--fc-white); border: 3px solid var(--fc-white); border-radius: 10px; box-shadow: 0 4px 0 #600; cursor: pointer; text-shadow: 1px 1px #000; }
+        .btn-main:disabled { background: #444; box-shadow: none; border-color: #777; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="game-wrapper">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #fff; padding-bottom:4px;">
+        <span id="global-stage" style="color:var(--fc-gold); font-weight:bold; font-size:0.9rem;">地方預賽 準決賽</span>
+        <button class="audio-btn" id="audio-toggle" onclick="toggleAudio()">🎵 音效: 關</button>
+    </div>
+
+    <div id="scene-select" class="scene active">
+        <div class="title-screen">
+            <h1>FC熱血甲子園<br>【晉級淘汰大賽】</h1>
+            <p style="font-size:0.8rem; color:#aaa;">請選擇你的地方代表高校（紅隊進攻）：</p>
+        </div>
+        <div class="team-grid" id="select-team-grid"></div>
+        <div class="action-zone">
+            <button class="btn-main" onclick="confirmTeam()">START GAME (決定)</button>
+        </div>
+    </div>
+
+    <div id="scene-bracket" class="scene">
+        <div class="stage-banner" id="bracket-stage-title">準決賽 (ROUND 1)</div>
+        <div class="vs-announcement">
+            <div style="color:var(--fc-red);" id="brk-player">PLAYER</div>
+            <div style="margin:10px 0; font-size:0.8rem; color:var(--fc-gold);">- VS -</div>
+            <div style="color:#00ff66;" id="brk-cpu">CPU</div>
+        </div>
+        <p style="font-size:0.75rem; color:#aaa; text-align:center;">贏球即可晉級下一輪，輸球則大會淘汰！</p>
+        <div class="action-zone">
+            <button class="btn-main" onclick="startMatchScene()">PLAY BALL (開賽)</button>
+        </div>
+    </div>
+
+    <div id="scene-match" class="scene">
+        <div class="scoreboard">
+            <table class="sb-table">
+                <tr class="sb-th-gold">
+                    <th style="text-align:left; width:65px;">TEAM</th>
+                    <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>X</th>
+                    <th>R</th><th>H</th>
+                </tr>
+                <tr>
+                    <td class="sb-name red" id="sb-name-red">紅隊</td>
+                    <td id="r1">-</td><td id="r2">-</td><td id="r3">-</td><td id="r4">-</td><td id="r5">-</td><td id="r6">-</td><td id="r7">-</td><td id="r8">-</td><td id="r9">-</td><td id="r10">-</td>
+                    <td class="sb-total" id="total-r-red">0</td>
+                    <td class="sb-total" id="total-h-red">0</td>
+                </tr>
+                <tr>
+                    <td class="sb-name green" id="sb-name-green">綠隊</td>
+                    <td id="g1">-</td><td id="g2">-</td><td id="g3">-</td><td id="g4">-</td><td id="g5">-</td><td id="g6">-</td><td id="g7">-</td><td id="g8">-</td><td id="g9">-</td><td id="g10">-</td>
+                    <td class="sb-total" id="total-r-green">0</td>
+                    <td class="sb-total" id="total-h-green">0</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="field-grid">
+            <div class="bso-panel">
+                <div class="bso-row">B <div class="bso-dots"><div class="dot b" id="b1"></div><div class="dot b" id="b2"></div><div class="dot b" id="b3"></div></div></div>
+                <div class="bso-row">S <div class="bso-dots"><div class="dot s" id="s1"></div><div class="dot s" id="s2"></div></div></div>
+                <div class="bso-row">O <div class="bso-dots"><div class="dot o" id="o1"></div><div class="dot o" id="o2"></div></div></div>
+            </div>
+            <div class="diamond-box">
+                <div class="diamond">
+                    <div class="base base-1" id="base-1"></div>
+                    <div class="base base-2" id="base-2"></div>
+                    <div class="base base-3" id="base-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="versus-zone">
+            <div class="player-card atk">
+                <div id="card-atk-title" style="color:var(--fc-red); font-weight:bold; font-size:0.75rem;">進攻</div>
+                <div class="sprite-window" id="sprite-bat"></div>
+                <div id="card-bat-name" style="font-weight:bold;">-</div>
+                <div id="card-bat-order" style="color:#aaa; font-size:0.75rem;">1棒</div>
+            </div>
+            <div class="player-card def">
+                <div id="card-def-title" style="color:#00ff66; font-weight:bold; font-size:0.75rem;">守備</div>
+                <div class="sprite-window" id="sprite-pit"></div>
+                <div id="card-pit-name" style="font-weight:bold;">-</div>
+                <div style="color:#aaa; font-size:0.75rem;">王牌</div>
+            </div>
+        </div>
+
+        <div class="log-console" id="log-box">[大會] 比賽預備中...</div>
+
+        <div class="save-load-zone">
+            <div class="file-btn" onclick="exportJSON()">💾 備份進度</div>
+            <label class="file-btn" for="file-input">📂 還原進度</label>
+            <input type="file" id="file-input" accept=".json" onchange="importJSON(event)">
+        </div>
+
+        <div class="action-zone">
+            <button class="btn-main" id="main-action-btn" onclick="playBall()">⚡ 釋放全能量・對決 ⚡</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const RED_TEAM_IMG = "http://googleusercontent.com/image_generation_content/292";
+    const GREEN_TEAM_IMG = "http://googleusercontent.com/image_generation_content/277";
+
+    // 擴充至 16 校著名高校名單
+    const allSchools = [
+        "大阪桐蔭", "智弁和歌山", "星稜", "仙台育英", "中京大中京", "廣陵", "橫濱", "花卷東",
+        "明德義塾", "敦賀氣比", "作新學院", "慶應義塾", "報德學園", "常總學院", "天理", "高知商"
+    ];
+    const names = ["山本", "佐藤", "田中", "高橋", "渡邊", "伊藤", "中村", "小林", "加藤", "吉田"];
+
+    // 晉級聯賽狀態
+    let tournament = {
+        playerSchool: "",
+        currentStage: 0, // 0:準決賽, 1:區域決賽, 2:甲子園全國總決賽
+        stagesText: ["地方準決賽", "地方決賽", "甲子園全國總決賽"],
+        pool: [] // 敵手池
+    };
+
+    let game = {
+        scoreRed: 0, scoreGreen: 0, hitsRed: 0, hitsGreen: 0,
+        inning: 1, isTop: true, balls: 0, strikes: 0, outs: 0,
+        bases: [false, false, false], batIndex: 0, pitIndex: 5,
+        redSchool: "", greenSchool: "",
+        redInnings: Array(10).fill('-'), greenInnings: Array(10).fill('-'),
+        currentInningRun: 0, isOver: false
+    };
+
+    // 音效合成
+    let audioCtx = null, bgmInterval = null, isAudioOn = false, bgmStep = 0;
+    const redMelody = [392, 440, 493, 523, 523, 493, 440, 392]; 
+    const greenMelody = [293, 349, 392, 440, 392, 349, 293, 261];
+
+    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    function playTone(freq, type, duration, volume = 0.08) {
+        if (!isAudioOn || !audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator(); let gainNode = audioCtx.createGain();
+            osc.type = type; osc.frequency.value = freq;
+            gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
+    }
+
+    function startDynamicBGM() {
+        if (bgmInterval) clearInterval(bgmInterval);
+        bgmStep = 0;
+        bgmInterval = setInterval(() => {
+            if (isAudioOn && !game.isOver && document.getElementById('scene-match').classList.contains('active')) {
+                let freq = (game.isTop ? redMelody : greenMelody)[bgmStep % 8];
+                playTone(freq, game.isTop ? 'square' : 'sawtooth', 0.18, 0.02);
+                bgmStep++;
+            }
+        }, 220);
+    }
+
+    function toggleAudio() {
+        initAudio(); isAudioOn = !isAudioOn;
+        document.getElementById('audio-toggle').innerText = isAudioOn ? "🎵 音效: 開" : "🎵 音效: 關";
+        if (isAudioOn) { if (audioCtx.state === 'suspended') audioCtx.resume(); startDynamicBGM(); }
+        else { if (bgmInterval) clearInterval(bgmInterval); }
+    }
+
+    // 場景切換
+    function showScene(id) {
+        document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    // 初始化選隊介面
+    function initSelectScreen() {
+        const grid = document.getElementById('select-team-grid');
+        grid.innerHTML = "";
+        allSchools.forEach(sch => {
+            let btn = document.createElement('button');
+            btn.className = "team-btn";
+            btn.innerText = sch;
+            btn.onclick = () => {
+                document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                tournament.playerSchool = sch;
+            };
+            grid.appendChild(btn);
+        });
+    }
+
+    function confirmTeam() {
+        if (!tournament.playerSchool) { alert("請先選取一所高校！"); return; }
+        // 隨機生成對手池（過濾掉玩家選的學校）
+        tournament.pool = allSchools.filter(s => s !== tournament.playerSchool).sort(() => Math.random() - 0.5);
+        tournament.currentStage = 0;
+        goToBracketScene();
+    }
+
+    function goToBracketScene() {
+        document.getElementById('global-stage').innerText = tournament.stagesText[tournament.currentStage];
+        document.getElementById('bracket-stage-title').innerText = `${tournament.stagesText[tournament.currentStage]} (ROUND ${tournament.currentStage + 1})`;
+        document.getElementById('brk-player').innerText = `1P: ${tournament.playerSchool}`;
+        document.getElementById('brk-cpu').innerText = `CPU: ${tournament.pool[tournament.currentStage]}`;
+        showScene('scene-bracket');
+    }
+
+    function startMatchScene() {
+        // 初始化該場賽事數據 (玩家固定防守或進攻？此處依提示：玩家紅隊進攻，CPU綠隊守備)
+        game = {
+            scoreRed: 0, scoreGreen: 0, hitsRed: 0, hitsGreen: 0,
+            inning: 1, isTop: true, balls: 0, strikes: 0, outs: 0,
+            bases: [false, false, false], batIndex: Math.floor(Math.random()*10), pitIndex: Math.floor(Math.random()*21),
+            redSchool: tournament.playerSchool, greenSchool: tournament.pool[tournament.currentStage],
+            redInnings: Array(10).fill('-'), greenInnings: Array(10).fill('-'),
+            currentInningRun: 0, isOver: false
+        };
+        
+        document.getElementById('main-action-btn').innerText = "⚡ 釋放全能量・對決 ⚡";
+        document.getElementById('main-action-btn').disabled = false;
+        document.getElementById('log-box').innerHTML = `[大會] ${game.redSchool} 對戰 ${game.greenSchool}，比賽開始！`;
+        
+        updateUI();
+        showScene('scene-match');
+        if (isAudioOn) startDynamicBGM();
+    }
+
+    // 球賽邏輯
+    function setSprite(element, imgUrl, index) {
+        const col = index % 7; const row = Math.floor(index / 7);
+        element.style.backgroundImage = `url('${imgUrl}')`;
+        element.style.backgroundPosition = `${(col / 6) * 100}% ${(row / 2) * 100}%`;
+    }
+
+    function updateUI() {
+        document.getElementById('sb-name-red').innerText = game.redSchool;
+        document.getElementById('sb-name-green').innerText = game.greenSchool;
+        document.getElementById('total-r-red').innerText = game.scoreRed;
+        document.getElementById('total-h-red').innerText = game.hitsRed;
+        document.getElementById('total-r-green').innerText = game.scoreGreen;
+        document.getElementById('total-h-green').innerText = game.hitsGreen;
+
+        for(let i=1; i<=10; i++) {
+            document.getElementById(`r${i}`).innerText = game.redInnings[i-1];
+            document.getElementById(`g${i}`).innerText = game.greenInnings[i-1];
+        }
+
+        for(let i=1; i<=3; i++) document.getElementById(`b${i}`).className = `dot b ${game.balls >= i ? 'active' : ''}`;
+        for(let i=1; i<=2; i++) document.getElementById(`s${i}`).className = `dot s ${game.strikes >= i ? 'active' : ''}`;
+        for(let i=1; i<=2; i++) document.getElementById(`o${i}`).className = `dot o ${game.outs >= i ? 'active' : ''}`;
+
+        document.getElementById('base-1').className = `base base-1 ${game.bases[0] ? 'active' : ''}`;
+        document.getElementById('base-2').className = `base base-2 ${game.bases[1] ? 'active' : ''}`;
+        document.getElementById('base-3').className = `base base-3 ${game.bases[2] ? 'active' : ''}`;
+
+        const bSprite = document.getElementById('sprite-bat');
+        const pSprite = document.getElementById('sprite-pit');
+        if (game.isTop) {
+            setSprite(bSprite, RED_TEAM_IMG, game.batIndex);
+            setSprite(pSprite, GREEN_TEAM_IMG, game.pitIndex);
+            document.getElementById('card-atk-title').innerText = `${game.redSchool} (攻)`;
+            document.getElementById('card-def-title').innerText = `${game.greenSchool} (守)`;
+        } else {
+            setSprite(bSprite, GREEN_TEAM_IMG, game.batIndex);
+            setSprite(pSprite, RED_TEAM_IMG, game.pitIndex);
+            document.getElementById('card-atk-title').innerText = `${game.greenSchool} (攻)`;
+            document.getElementById('card-def-title').innerText = `${game.redSchool} (守)`;
+        }
+        document.getElementById('card-bat-name').innerText = names[game.batIndex % names.length];
+        document.getElementById('card-pit-name').innerText = names[(game.pitIndex + 2) % names.length];
+        document.getElementById('card-bat-order').innerText = `${(game.batIndex % 9) + 1}棒`;
+    }
+
+    function log(msg) {
+        const box = document.getElementById('log-box');
+        box.innerHTML += `<div>${msg}</div>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function advanceBases(num) {
+        let runs = 0;
+        for (let i = 0; i < num; i++) {
+            if (game.bases[2]) { runs++; game.bases[2] = false; }
+            if (game.bases[1]) { game.bases[2] = true; game.bases[1] = false; }
+            if (game.bases[0]) { game.bases[1] = true; game.bases[0] = false; }
+            if (i === 0) game.bases[0] = true;
+            else if (i === 1) { game.bases[1] = true; game.bases[0] = false; }
+            else if (i === 2) { game.bases[2] = true; game.bases[1] = false; game.bases[0] = false; }
+        }
+        if (runs > 0) {
+            if(isAudioOn) { playTone(523, 'square', 0.05); setTimeout(()=>playTone(659, 'square', 0.05), 60); }
+            game.currentInningRun += runs;
+            if (game.isTop) game.scoreRed += runs; else game.scoreGreen += runs;
+            log(`[得分] 🏃 跑回 ${runs} 分！`);
+        }
+        if (!game.isTop && game.inning >= 9 && game.scoreGreen > game.scoreRed) {
+            log(`[再見比賽] ${game.greenSchool} 擊出再見得分！`);
+            endMatch();
+        }
+    }
+
+    function switchInning() {
+        if (game.isTop) {
+            game.redInnings[game.inning - 1] = game.currentInningRun;
+            game.isTop = false;
+        } else {
+            game.greenInnings[game.inning - 1] = game.currentInningRun;
+            if (game.inning === 9) {
+                if (game.scoreRed !== game.scoreGreen) { endMatch(); return; }
+                else { log(`[延長賽] 進入第 10 局延長賽！`); game.inning = 10; game.isTop = true; }
+            } else if (game.inning === 10) { endMatch(); return; }
+            else { game.inning++; game.isTop = true; }
+        }
+        game.balls = 0; game.strikes = 0; game.outs = 0;
+        game.bases = [false, false, false]; game.currentInningRun = 0;
+        game.pitIndex = Math.floor(Math.random() * 21);
+        if (isAudioOn) startDynamicBGM(); 
+    }
+
+    function playBall() {
+        if (game.isOver) return;
+        initAudio(); if(audioCtx && audioCtx.state === 'suspended' && isAudioOn) audioCtx.resume();
+        if (game.isTop && game.redInnings[game.inning-1] === '-') game.redInnings[game.inning-1] = 0;
+        if (!game.isTop && game.greenInnings[game.inning-1] === '-') game.greenInnings[game.inning-1] = 0;
+
+        const p = Math.random();
+        if (p < 0.45) {
+            if (Math.random() < 0.5) {
+                game.strikes++; log(`[好球] 落空！`);
+                if (game.strikes >= 3) { game.outs++; game.strikes = 0; game.balls = 0; if(isAudioOn) playTone(220, 'square', 0.2); log(`[出局] ❌ 三振！`); }
+            } else {
+                game.balls++; log(`[壞球] 選球。`);
+                if (game.balls >= 4) { log(`[保送] 四壞保送。`); game.strikes = 0; game.balls = 0; advanceBases(1); }
+            }
+        } else {
+            game.strikes = 0; game.balls = 0;
+            const hitP = Math.random();
+            if (hitP < 0.5) { game.outs++; if(isAudioOn) playTone(220, 'square', 0.2); log(`[出局] 擊出高飛被接殺。`); }
+            else {
+                if(isAudioOn) { playTone(180, 'triangle', 0.08); playTone(900, 'square', 0.12); }
+                if (hitP < 0.85) { log(`[安打] 🔥 一壘安打！`); advanceBases(1); }
+                else if (hitP < 0.96) { log(`[長打] 🚀 二壘安打！`); advanceBases(2); }
+                else { log(`[全壘打] ☄️ 💥 全 壘 打 ！！`); advanceBases(4); }
+            }
+        }
+        if(!game.isOver) game.batIndex = (game.batIndex + 1) % 21;
+        if (game.outs >= 3) { log(`[交換] 3出局攻守交換。`); switchInning(); }
+        if(!game.isOver) updateUI();
+    }
+
+    // 結束此單場比賽並判定晉級
+    function endMatch() {
+        game.isOver = true;
+        if(game.isTop) game.redInnings[game.inning - 1] = game.currentInningRun;
+        else game.greenInnings[game.inning - 1] = game.currentInningRun;
+        updateUI();
+        clearInterval(bgmInterval);
+
+        const playerWon = game.scoreRed > game.scoreGreen;
+        const isDraw = game.scoreRed === game.scoreGreen;
+
+        if (playerWon) {
+            log(`[大會公告] 🎉 恭喜！${tournament.playerSchool} 贏得本場勝利！`);
+            if (tournament.currentStage < 2) {
+                document.getElementById('main-action-btn').innerText = "👉 前往下一輪晉級賽";
+                document.getElementById('main-action-btn').onclick = () => {
+                    tournament.currentStage++;
+                    goToBracketScene();
+                    document.getElementById('main-action-btn').onclick = playBall;
+                };
+            } else {
+                log(`[🏆大會總宣告] 全國制霸！！${tournament.playerSchool} 成功勇奪甲子園總冠軍錦旗！`);
+                document.getElementById('main-action-btn').innerText = "🏆 贏得全國大會冠軍！";
+                document.getElementById('main-action-btn').disabled = true;
+            }
+        } else {
+            if(isDraw) {
+                log(`[大會公告] 延長賽平手和局！依大會規定判定 CPU 晉級，大會遺憾淘汰！`);
+            } else {
+                log(`[大會公告] ❌ 比賽終了，${tournament.playerSchool} 戰敗被淘汰！GAME OVER`);
+            }
+            document.getElementById('main-action-btn').innerText = "💥 淘汰敗退 (點擊重來)";
+            document.getElementById('main-action-btn').onclick = () => {
+                location.reload();
+            };
+        }
+    }
+
+    // --- JSON 備份管理（連帶儲存聯賽與球賽資訊） ---
+    function exportJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tournament, game }, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `koshien_tournament_stage_${tournament.currentStage}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click(); downloadAnchor.remove();
+    }
+
+    function importJSON(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (imported.tournament && imported.game) {
+                    tournament = imported.tournament;
+                    game = imported.game;
+                    document.getElementById('main-action-btn').onclick = playBall;
+                    document.getElementById('main-action-btn').disabled = game.isOver;
+                    showScene('scene-match');
+                    updateUI();
+                    if(isAudioOn) startDynamicBGM();
+                    log(`[系統] 📂 成功回復第 ${tournament.currentStage+1} 輪聯賽進度！`);
+                }
+            } catch (err) { alert("檔案讀取失敗！"); }
+        };
+        reader.readAsText(file);
+    }
+
+    window.onload = function() { initSelectScreen(); };
+</script>
+</body>
+</html>
