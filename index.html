@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FC甲子園：熱血淘汰晉級賽</title>
+    <title>FC甲子園：熱血淘汰晉級賽 v4</title>
     <style>
         :root {
             --fc-black: #000000;
@@ -151,11 +151,13 @@
 <body>
 
 <div class="game-wrapper">
+    <!-- 頂部共通狀態 -->
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #fff; padding-bottom:4px;">
         <span id="global-stage" style="color:var(--fc-gold); font-weight:bold; font-size:0.9rem;">大會預備中</span>
         <button class="audio-btn" id="audio-toggle" onclick="toggleAudio()">🎵 音效: 關</button>
     </div>
 
+    <!-- 場景一：選隊開局畫面 -->
     <div id="scene-select" class="scene active">
         <div class="title-screen">
             <h1>FC熱血甲子園<br>【晉級淘汰大賽】</h1>
@@ -167,6 +169,7 @@
         </div>
     </div>
 
+    <!-- 場景二：晉級對陣宣告 -->
     <div id="scene-bracket" class="scene">
         <div class="stage-banner" id="bracket-stage-title">準決賽 (ROUND 1)</div>
         <div class="vs-announcement">
@@ -180,6 +183,7 @@
         </div>
     </div>
 
+    <!-- 場景三：球賽主戰場 -->
     <div id="scene-match" class="scene">
         <div class="scoreboard">
             <table class="sb-table">
