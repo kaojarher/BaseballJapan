@@ -48,12 +48,12 @@
 
         /* 選隊畫面 */
         .title-screen { text-align: center; padding: 20px 0; }
-        .title-screen h1 { color: var(--fc-gold); font-size: 1.6rem; margin-bottom: 20px; text-shadow: 3px 3px #500; }
+        .title-screen h1 { color: var(--fc-gold); font-size: 1.6rem; margin: 0 0 10px 0; text-shadow: 3px 3px #500; }
         .team-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
-            max-height: 280px;
+            max-height: 240px;
             overflow-y: auto;
             border: 2px solid var(--fc-white);
             padding: 8px;
@@ -125,7 +125,7 @@
         .player-card { background: #222; border: 2px solid var(--fc-white); padding: 5px; text-align: center; font-size: 0.8rem; }
         .player-card.atk { border-color: var(--fc-red); }
         .player-card.def { border-color: #00ff66; }
-        .sprite-window { width: 90px; height: 120px; margin: 5px auto; border: 2px solid var(--fc-white); background-size: calc(90px * 7) calc(120px * 3); background-repeat: no-repeat; image-rendering: pixelated; }
+        .sprite-window { width: 90px; height: 120px; margin: 5px auto; border: 2px solid var(--fc-white); background-size: calc(90px * 7) calc(120px * 3); background-repeat: no-repeat; image-rendering: pixelated; background-color: #111; }
 
         .log-console { background: var(--fc-black); border: 2px solid var(--fc-white); height: 85px; overflow-y: auto; padding: 5px; font-size: 0.8rem; line-height: 1.4; color: #00ff00; }
         .save-load-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 1px dashed var(--fc-white); padding: 8px; font-size: 0.75rem; }
@@ -136,13 +136,23 @@
         .action-zone { margin-top: 5px; }
         .btn-main { width: 100%; padding: 16px; font-size: 1.25rem; font-weight: bold; background: linear-gradient(18deg, #a01a14, var(--fc-red)); color: var(--fc-white); border: 3px solid var(--fc-white); border-radius: 10px; box-shadow: 0 4px 0 #600; cursor: pointer; text-shadow: 1px 1px #000; }
         .btn-main:disabled { background: #444; box-shadow: none; border-color: #777; color: #888; }
+        
+        .audio-btn {
+            background: var(--fc-red);
+            color: var(--fc-white);
+            border: 2px solid var(--fc-white);
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
 <div class="game-wrapper">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #fff; padding-bottom:4px;">
-        <span id="global-stage" style="color:var(--fc-gold); font-weight:bold; font-size:0.9rem;">地方預賽 準決賽</span>
+        <span id="global-stage" style="color:var(--fc-gold); font-weight:bold; font-size:0.9rem;">大會預備中</span>
         <button class="audio-btn" id="audio-toggle" onclick="toggleAudio()">🎵 音效: 關</button>
     </div>
 
@@ -238,8 +248,9 @@
 </div>
 
 <script>
-    const RED_TEAM_IMG = "http://googleusercontent.com/image_generation_content/292";
-    const GREEN_TEAM_IMG = "http://googleusercontent.com/image_generation_content/277";
+    // 依據您的自訂命名，預設直接讀取同目錄下的本地圖檔
+    const RED_TEAM_IMG = "red_team_sprites.png";
+    const GREEN_TEAM_IMG = "green_team_sprites.png";
 
     // 擴充至 16 校著名高校名單
     const allSchools = [
@@ -251,7 +262,7 @@
     // 晉級聯賽狀態
     let tournament = {
         playerSchool: "",
-        currentStage: 0, // 0:準決賽, 1:區域決賽, 2:甲子園全國總決賽
+        currentStage: 0, // 0:地方準決賽, 1:地方決賽, 2:甲子園全國總決賽
         stagesText: ["地方準決賽", "地方決賽", "甲子園全國總決賽"],
         pool: [] // 敵手池
     };
@@ -342,7 +353,6 @@
     }
 
     function startMatchScene() {
-        // 初始化該場賽事數據 (玩家固定防守或進攻？此處依提示：玩家紅隊進攻，CPU綠隊守備)
         game = {
             scoreRed: 0, scoreGreen: 0, hitsRed: 0, hitsGreen: 0,
             inning: 1, isTop: true, balls: 0, strikes: 0, outs: 0,
@@ -484,7 +494,6 @@
         if(!game.isOver) updateUI();
     }
 
-    // 結束此單場比賽並判定晉級
     function endMatch() {
         game.isOver = true;
         if(game.isTop) game.redInnings[game.inning - 1] = game.currentInningRun;
@@ -522,7 +531,6 @@
         }
     }
 
-    // --- JSON 備份管理（連帶儲存聯賽與球賽資訊） ---
     function exportJSON() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tournament, game }, null, 2));
         const downloadAnchor = document.createElement('a');
